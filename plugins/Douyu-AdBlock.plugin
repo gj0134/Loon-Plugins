@@ -1,0 +1,20 @@
+#!name = 斗鱼直播间去广告
+#!desc = 移除斗鱼直播间横幅、悬浮游戏卡片、房间推送及第三方视频广告配置。基于斗鱼 iOS 8.180 实际抓包制作。
+#!author = gj0134
+#!homepage = https://github.com/gj0134/Loon-Plugins
+#!date = 2026-07-14
+
+[URL Rewrite]
+# 直播间横幅与右下角悬浮游戏卡片
+^https:\/\/rtbapi\.douyucdn\.cn\/japi\/dyadx\/gateway\/app\/getinfo reject-dict
+
+# 房间推送广告
+^https:\/\/rtbapi\.douyucdn\.cn\/japi\/sign\/app\/roomPushAd\/getinfo reject-dict
+
+# 第三方 SDK 广告配置与预加载素材
+^https:\/\/rtbapi\.douyucdn\.cn\/japi\/sign\/dsp\/hy\/getSdkInfo reject-dict
+^https:\/\/rtbapi\.douyucdn\.cn\/japi\/sign\/app\/getmaterial reject-dict
+^https:\/\/rtbapi\.douyucdn\.cn\/japi\/sign\/video\/cache reject-dict
+
+[MITM]
+hostname = rtbapi.douyucdn.cn
