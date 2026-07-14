@@ -32,7 +32,7 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Douyu-AdBlock
 Loon 插件订阅地址：
 
 ```text
-https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Zhihu-AdBlock-Answer-Swipe.lpx
+https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Zhihu-AdBlock-Answer-Swipe.plugin
 ```
 
 安装本版本前，请先停用或删除其他知乎去广告插件，避免相同接口被旧规则继续拦截。
