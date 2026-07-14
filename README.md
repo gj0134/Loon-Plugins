@@ -23,6 +23,20 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Douyu-AdBlock
 
 在 Loon 的插件页面添加上述 URL，启用插件，并确认 MITM 证书已经安装和信任。启用后请强制关闭斗鱼再重新打开。
 
+### 知乎去广告（保留回答上下切换）
+
+基于可莉的知乎去广告插件调整，保留原有广告过滤能力，同时恢复回答详情页的上一条/下一条回答切换。
+
+与上游版本相比，仅取消了对 `next-render?id=…&type=answer` 接口的整接口清空，避免回答连续浏览功能被误伤。
+
+Loon 插件订阅地址：
+
+```text
+https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Zhihu-AdBlock-Answer-Swipe.lpx
+```
+
+安装本版本前，请先停用或删除其他知乎去广告插件，避免相同接口被旧规则继续拦截。
+
 ## 说明
 
 - 插件不会修改账号、会员或付费数据。
