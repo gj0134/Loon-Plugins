@@ -1,6 +1,6 @@
 #!name=知乎去广告（保留回答上下切换）
-#!desc=基于可莉 2026-06-01 版知乎去广告插件优化：保留回答详情页上下切换上一条/下一条回答，同时移除开屏、信息流及页面广告并精简推广模块。
-#!author=RuCu6, blackmatrix7, 可莉, gj0134
+#!desc=知乎去广告优化版：保留回答详情页上下切换上一条/下一条回答，同时移除开屏、信息流及页面广告并精简推广模块。
+#!author=gj0134
 #!openUrl=https://apps.apple.com/app/id432274380
 #!tag=去广告
 #!homepage=https://github.com/gj0134/Loon-Plugins
