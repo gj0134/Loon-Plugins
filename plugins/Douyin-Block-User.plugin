@@ -1,5 +1,5 @@
 #!name = 抖音屏蔽指定用户消息
-#!desc = 隐藏指定用户发来的私聊消息，可分别开关。iOS 客户端的私信默认走 frontier / klink 长连接推送，本插件会拒绝这些长连接，迫使抖音回落到 HTTP 拉取消息，再由脚本过滤。副作用：站内实时推送变为轮询、消息可能延迟几秒，klink 属通用长连接，屏蔽后直播等功能或受影响。
+#!desc = 按发送者 UID 隐藏指定用户发来的私聊消息，可分别开关。仅对走 imapi HTTP 接口的抖音网页版有效；iOS 客户端的私信走 frontier / klink / bysnc 加密长连接，Loon 无法解密与逐条过滤，App 端请改用抖音自带的“消息免打扰”。
 #!author = gj0134
 #!homepage = https://github.com/gj0134/Loon-Plugins
 #!date = 2026-07-15
@@ -9,15 +9,6 @@
 blockAqin = switch,true,tag=屏蔽阿沁的消息,desc=隐藏阿沁（uid 72364353745）发来的私聊消息
 blockLaoma = switch,true,tag=屏蔽老马的消息,desc=隐藏老马（uid 1251656996762231）发来的私聊消息
 debugLog = switch,false,tag=调试日志,desc=在脚本日志中输出每次命中的接口与过滤结果，排查问题时开启
-
-[Rule]
-# 拒绝抖音 frontier / klink / bytelink 长连接（IM 推送通道），迫使私信回落到可被脚本过滤的 HTTP 拉取
-DOMAIN-KEYWORD,frontier-aweme,REJECT
-DOMAIN-KEYWORD,frontier100-aweme,REJECT
-AND,((DOMAIN-KEYWORD,klink),(DOMAIN-SUFFIX,amemv.com)),REJECT
-AND,((DOMAIN-KEYWORD,bytelink),(DOMAIN-SUFFIX,amemv.com)),REJECT
-# 禁止 IM 接口走 QUIC/UDP，确保流量可被 MITM
-AND,((DOMAIN-KEYWORD,imapi),(PROTOCOL,UDP)),REJECT
 
 [Script]
 http-response ^https:\/\/imapi[^.\/]*\.(?:douyin\.com|zijieapi\.com|snssdk\.com|amemv\.com)\/v\d+\/message\/get_[a-z_]+ script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/douyin-block-user.js,tag=抖音屏蔽指定用户消息,requires-body=true,binary-body-mode=true,timeout=10,argument=[{blockAqin},{blockLaoma},{debugLog}]
