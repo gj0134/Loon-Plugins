@@ -1,21 +1,53 @@
 // Douyin IM protobuf response filter for Loon.
 // Removes only messages sent by the configured user in the configured conversation.
+// Works for both web (imapi.douyin.com) and iOS app fallback (imapi*-normal-*.zijieapi.com);
+// the companion plugin rejects the frontier long connection so the app polls over HTTP.
 
 var TARGETS = [
   {
     name: "阿沁",
-    optionKey: "屏蔽阿沁",
+    argumentKey: "blockAqin",
+    legacyOptionKey: "屏蔽阿沁",
     senderId: 72364353745,
     conversationId: "0:1:72364353745:102398636553"
   },
   {
     name: "老马",
-    optionKey: "屏蔽老马",
+    argumentKey: "blockLaoma",
+    legacyOptionKey: "屏蔽老马",
     senderId: 1251656996762231,
     conversationId: "0:1:102398636553:1251656996762231"
   }
 ];
+var DEBUG_ARGUMENT_KEY = "debugLog";
 var MAX_PROTOBUF_DEPTH = 10;
+
+function readArgumentValue(key, position) {
+  if (typeof $argument === "object" && $argument !== null && key in $argument) {
+    return String($argument[key]);
+  }
+
+  if (typeof $argument === "string" && $argument.length > 0) {
+    var raw = $argument.replace(/^\[/, "").replace(/\]$/, "");
+    var parts = raw.split(",");
+    if (position < parts.length) {
+      return parts[position].replace(/^\s*"?/, "").replace(/"?\s*$/, "");
+    }
+  }
+
+  return null;
+}
+
+function isSwitchEnabled(key, position, fallback) {
+  var value = readArgumentValue(key, position);
+  if (value === "true" || value === "开启") {
+    return true;
+  }
+  if (value === "false" || value === "关闭") {
+    return false;
+  }
+  return fallback;
+}
 
 function readVarint(bytes, offset) {
   var value = 0;
@@ -112,18 +144,18 @@ function parseFields(bytes) {
   return fields;
 }
 
-function asciiEquals(bytes, expected) {
-  if (bytes.length !== expected.length) {
-    return false;
-  }
+function bytesToAscii(bytes) {
+  var text = "";
 
   for (var index = 0; index < bytes.length; index += 1) {
-    if (bytes[index] !== expected.charCodeAt(index)) {
-      return false;
+    var code = bytes[index];
+    if (code < 32 || code > 126) {
+      return null;
     }
+    text += String.fromCharCode(code);
   }
 
-  return true;
+  return text;
 }
 
 function getBlockedTargetIndex(bytes, enabledTargets) {
@@ -151,11 +183,19 @@ function getBlockedTargetIndex(bytes, enabledTargets) {
     return -1;
   }
 
+  var conversationText = bytesToAscii(conversationField);
+  if (conversationText === null || conversationText.indexOf(":") < 0) {
+    return -1;
+  }
+
   for (var targetIndex = 0; targetIndex < enabledTargets.length; targetIndex += 1) {
     var target = enabledTargets[targetIndex];
+    if (senderField !== target.senderId) {
+      continue;
+    }
     if (
-      senderField === target.senderId &&
-      asciiEquals(conversationField, target.conversationId)
+      conversationText === target.conversationId ||
+      conversationText.indexOf(String(target.senderId)) >= 0
     ) {
       return targetIndex;
     }
@@ -231,20 +271,44 @@ function filterNestedMessages(bytes, depth, stats, enabledTargets) {
   return { bytes: concatBytes(chunks, totalLength), changed: true };
 }
 
+function readLegacyToggle(target) {
+  try {
+    if (typeof $persistentStore !== "undefined" && $persistentStore.read) {
+      return $persistentStore.read(target.legacyOptionKey);
+    }
+  } catch (_) {}
+  return null;
+}
+
 function finish() {
+  var debugEnabled = isSwitchEnabled(DEBUG_ARGUMENT_KEY, TARGETS.length, false);
+  var requestUrl = "";
+  try {
+    requestUrl = ($request && $request.url) || "";
+  } catch (_) {}
+
   var body = $response && $response.body;
   if (!(body instanceof Uint8Array) || body.length === 0) {
-    console.log("[Douyin Block User] response body is not binary");
+    console.log("[Douyin Block User] response body is not binary: " + requestUrl);
     $done({});
     return;
+  }
+
+  if (debugEnabled) {
+    console.log(
+      "[Douyin Block User] hit " + requestUrl + " (" + body.length + " bytes)"
+    );
   }
 
   try {
     var enabledTargets = [];
     for (var targetIndex = 0; targetIndex < TARGETS.length; targetIndex += 1) {
       var target = TARGETS[targetIndex];
-      var selectedValue = $persistentStore.read(target.optionKey);
-      if (selectedValue !== "关闭") {
+      var enabled = isSwitchEnabled(target.argumentKey, targetIndex, true);
+      if (enabled && readLegacyToggle(target) === "关闭") {
+        enabled = false;
+      }
+      if (enabled) {
         enabledTargets.push(target);
       }
     }
@@ -262,7 +326,9 @@ function finish() {
     var filtered = filterNestedMessages(body, 0, stats, enabledTargets);
 
     if (!filtered.changed) {
-      console.log("[Douyin Block User] no target messages found");
+      if (debugEnabled) {
+        console.log("[Douyin Block User] no target messages found");
+      }
       $done({});
       return;
     }
