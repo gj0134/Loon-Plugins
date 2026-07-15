@@ -4,6 +4,20 @@
 
 ## 插件列表
 
+### 抖音屏蔽指定用户消息（实验版）
+
+按发送者 UID 过滤两个指定私聊会话中的 Protobuf 消息记录，保留本人发送的消息及其他会话。插件配置提供“屏蔽阿沁”和“屏蔽老马”两个独立开关。
+
+当前版本基于抖音 PC Web IM 接口抓包制作，并兼容匹配抖音移动端常见的 `imapi*.zijieapi.com` 主机。实时长连接推送可能仍会短暂显示，重新进入会话或刷新历史记录后才会触发过滤。
+
+Loon 插件订阅地址：
+
+```text
+https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Douyin-Block-User.plugin
+```
+
+启用前请确认 Loon 的 MITM 证书已经安装并信任。插件不会 MITM `frontier` 长连接，避免影响私聊发送。
+
 ### 斗鱼直播间去广告
 
 移除斗鱼直播间中的：

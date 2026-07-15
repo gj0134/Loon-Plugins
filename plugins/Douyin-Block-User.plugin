@@ -1,0 +1,13 @@
+#!name = 抖音屏蔽指定用户消息（实验版）
+#!desc = 仅隐藏两个指定用户发来的私聊记录，保留本人消息与其他会话。可在插件配置中分别开启或关闭。
+#!author = gj0134
+#!homepage = https://github.com/gj0134/Loon-Plugins
+#!date = 2026-07-15
+#!select = 屏蔽阿沁,开启,关闭
+#!select = 屏蔽老马,开启,关闭
+
+[Script]
+http-response ^https:\/\/(?:imapi\.douyin\.com|imapi[^\/]*\.zijieapi\.com)\/v1\/message\/(?:get_by_conversation|get_user_message)(?:\?|$) script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/douyin-block-user.js,tag=抖音屏蔽指定用户消息,requires-body=true,binary-body-mode=true,timeout=10,enable=true
+
+[MITM]
+hostname = imapi.douyin.com, imapi*.zijieapi.com
