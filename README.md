@@ -42,6 +42,21 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Zhihu-AdBlock
 
 安装本版本前，请先停用或删除其他知乎去广告插件，避免相同接口被旧规则继续拦截。
 
+### 知乎净化（盐选过滤可开关，独立版）
+
+这是独立插件，不会覆盖上面的固定过滤版。广告始终过滤，“过滤盐选会员内容”参数可自行切换：
+
+- 开启（默认）：隐藏盐选推荐、付费视频试读等明确付费内容。
+- 关闭：保留盐选及付费内容，只执行广告过滤。
+
+Loon 插件订阅地址：
+
+```text
+https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Zhihu-AdBlock-Configurable.plugin
+```
+
+固定版与开关版不要同时启用。切换参数后请强制关闭知乎再重新打开。
+
 ## 说明
 
 - 插件不会修改账号、会员或付费数据。
