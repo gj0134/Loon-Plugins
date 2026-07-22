@@ -1,5 +1,5 @@
 #!name=京东自动价保（每 2.5 小时）
-#!desc=定时模拟京东价保页底部“一键价保”，由京东服务端判断可价保订单；检测到可用优惠券时默认自动用券。
+#!desc=定时模拟京东价保页底部“一键价保”，由京东服务端判断可价保订单；默认自动用券，并保留最近 3 次申请记录。
 #!author=gj0134
 #!openUrl=https://apps.apple.com/app/id414245413
 #!tag=京东,自动化
@@ -19,6 +19,9 @@ http-request ^https:\/\/api\.m\.jd\.com\/(?:\?.*)?$ script-path=https://raw.gith
 
 # 每 30 分钟唤醒检查一次；脚本按本地时间戳保证两次真实申请至少间隔 150 分钟，跨午夜也不会缩短。
 cron "*/30 * * * *" script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/jd-auto-price-protection.js,timeout=60,tag=京东自动价保,argument=[{jdCookie},{useCoupon},{notifyAll}]
+
+# 在 Loon 的脚本页面手动运行此项，可查看最近 3 次真实申请结果。
+generic script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/jd-auto-price-protection.js,timeout=10,tag=查看最近3次价保记录,argument="action=history"
 
 [MitM]
 hostname = api.m.jd.com

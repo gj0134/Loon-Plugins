@@ -63,6 +63,7 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Zhihu-AdBlock
 
 - 插件每 30 分钟检查一次，距上次申请满 2.5 小时时自动执行；跨天也保持 2.5 小时间隔，无需定时打开京东 App。
 - 检测到可用于价保的优惠券时，默认自动确认用券。
+- 在 Loon 脚本页面运行“查看最近3次价保记录”，可查看最近 3 次真实申请的时间和结果。
 - 只把 `pt_key`、`pt_pin` 保存在 Loon 本机，不在插件或 GitHub 中保存 Cookie、Token、设备标识。
 - 默认仅通知实际返款、登录失效和执行错误；“无差价”等普通结果可在脚本日志中查看。
 
@@ -78,6 +79,8 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/JD-Auto-Price
 2. 参数留空，安装插件后仅首次进入一次京东价保页面，插件会自动保存登录凭证；以后定时运行不需要打开 App。
 
 登录 Cookie 失效后需要重新填写，或再次打开京东让插件自动更新。自动用券可在插件参数中关闭。
+
+价保 H5 页面的 Zeus 地址只用于 App 页面来源识别，不属于一键价保接口参数。插件不会写死具体 Zeus 页面路径，只保留京东 H5 域名级的 `Origin`/`Referer` 请求头，避免页面活动 ID 更新后失效。
 
 ## 说明
 

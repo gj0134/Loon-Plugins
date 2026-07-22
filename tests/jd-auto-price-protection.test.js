@@ -150,12 +150,69 @@ test("Loon 定时运行会在服务端要求时发起第二次用券请求", () 
   assert.equal(requests.length, 2);
   assert.equal(doneCount, 1);
   assert.equal(requests[0].headers.Cookie, "pt_key=fixture-key; pt_pin=fixture-pin;");
+  assert.equal(requests[0].headers.Origin, "https://h5.m.jd.com");
+  assert.equal(requests[0].headers.Referer, "https://h5.m.jd.com/");
+  assert.equal(requests[0].headers["X-Referer-Page"], undefined);
   const firstBody = JSON.parse(new URLSearchParams(requests[0].body).get("body"));
   const couponBody = JSON.parse(new URLSearchParams(requests[1].body).get("body"));
   assert.equal(firstBody.couponConfirmFlag, null);
   assert.equal(couponBody.onceBatchId, "batch-fixture");
   assert.equal(couponBody.couponConfirmFlag, 1);
   assert.ok(store.get("jd_auto_price_protection_last_run_at"));
+  const history = JSON.parse(store.get(script.HISTORY_KEY));
+  assert.equal(history.length, 1);
+  assert.equal(history[0].usedCoupon, true);
+  assert.equal(history[0].successCount, 1);
+  assert.equal(history[0].totalAmount, 3);
+});
+
+test("只保留最新 3 次价保申请记录", () => {
+  let history = [];
+  for (let index = 1; index <= 4; index += 1) {
+    history = script.appendHistory(history, {
+      kind: index === 4 ? "success" : "noop",
+      successCount: index === 4 ? 1 : 0,
+      totalAmount: index === 4 ? 5 : 0,
+      message: "第 " + index + " 次"
+    }, index === 4, index * 1000);
+  }
+
+  assert.equal(history.length, 3);
+  assert.deepEqual(history.map((record) => record.timestamp), [4000, 3000, 2000]);
+  assert.equal(history[0].usedCoupon, true);
+  assert.equal(history[0].message, "成功 1 笔，预计返还 5 元（已用券）");
+});
+
+test("Loon 手动查看入口展示本地记录且不发送网络请求", () => {
+  const source = fs.readFileSync(path.join(root, "scripts/jd-auto-price-protection.js"), "utf8");
+  const history = [{
+    timestamp: new Date(2026, 6, 22, 12, 30).getTime(),
+    kind: "noop",
+    usedCoupon: false,
+    successCount: 0,
+    totalAmount: 0,
+    message: "当前无差价"
+  }];
+  const notices = [];
+  let doneCount = 0;
+
+  vm.runInNewContext(source, {
+    console: { log() {} },
+    $argument: "action=history",
+    $persistentStore: {
+      read(key) { return key === script.HISTORY_KEY ? JSON.stringify(history) : null; },
+      write() { throw new Error("查看历史时不应写入存储"); }
+    },
+    $notification: { post(...args) { notices.push(args); } },
+    $httpClient: { post() { throw new Error("查看历史时不应发送网络请求"); } },
+    $done() { doneCount += 1; }
+  }, { filename: "jd-auto-price-protection.js" });
+
+  assert.equal(doneCount, 1);
+  assert.equal(notices.length, 1);
+  assert.match(notices[0][1], /最近 1 次价保记录/);
+  assert.match(notices[0][2], /2026-07-22 12:30/);
+  assert.match(notices[0][2], /当前无差价/);
 });
 
 test("插件每 30 分钟检查并由本地时间戳保持 2.5 小时间隔", () => {
@@ -163,6 +220,8 @@ test("插件每 30 分钟检查并由本地时间戳保持 2.5 小时间隔", ()
   assert.match(plugin, /cron "\*\/30 \* \* \* \*"/);
   assert.match(plugin, /useCoupon = switch,true/);
   assert.match(plugin, /hostname = api\.m\.jd\.com/);
+  assert.match(plugin, /generic .*tag=查看最近3次价保记录,argument="action=history"/);
+  assert.doesNotMatch(plugin, /2RePMzTqg6UoffvMwtwVeMcnPGeg/);
 
   const base = Date.UTC(2026, 6, 22, 22, 30);
   assert.equal(script.isRunDue(base + 149 * 60 * 1000, base), false);
@@ -188,6 +247,7 @@ test("jd.har 与实现的一键价保契约一致", { skip: !fs.existsSync(path.
   assert.deepEqual(Object.keys(generatedBody).sort(), Object.keys(capturedBody).sort());
   assert.deepEqual(generatedBody.uniformBizInfo, capturedBody.uniformBizInfo);
   assert.equal(generatedBody.type, capturedBody.type);
+  assert.doesNotMatch(capturedForm.get("body"), /2RePMzTqg6UoffvMwtwVeMcnPGeg/);
 
   const capturedResponse = JSON.parse(decodeHarText(entry.response.content));
   assert.equal(capturedResponse.code, 0);

@@ -7,10 +7,11 @@ var STORE_KEY = "jd_auto_price_protection_credentials_v1";
 var AUTH_NOTICE_KEY = "jd_auto_price_protection_auth_notice_at";
 var MISSING_NOTICE_KEY = "jd_auto_price_protection_missing_notice_at";
 var LAST_RUN_KEY = "jd_auto_price_protection_last_run_at";
+var HISTORY_KEY = "jd_auto_price_protection_history_v1";
 var RUN_INTERVAL_MS = 150 * 60 * 1000;
+var HISTORY_LIMIT = 3;
 var API_URL = "https://api.m.jd.com/";
 var FUNCTION_ID = "mlproprice_skuOnceApply_jsf";
-var PRICE_PAGE = "https://h5.m.jd.com/babelDiy/Zeus/2RePMzTqg6UoffvMwtwVeMcnPGeg/index.html";
 var DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
 
 function hasOwn(object, key) {
@@ -219,6 +220,60 @@ function isRunDue(now, lastRunAt) {
   return !last || Number(now) - last >= RUN_INTERVAL_MS;
 }
 
+function readHistory(rawHistory) {
+  if (!rawHistory) {
+    return [];
+  }
+
+  try {
+    var parsed = typeof rawHistory === "string" ? JSON.parse(rawHistory) : rawHistory;
+    return Array.isArray(parsed) ? parsed.slice(0, HISTORY_LIMIT) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function buildHistoryRecord(result, usedCoupon, now) {
+  return {
+    timestamp: Number(now || Date.now()),
+    kind: String(result.kind || "error"),
+    usedCoupon: usedCoupon === true,
+    successCount: Number(result.successCount || 0),
+    totalAmount: Number(result.totalAmount || 0),
+    message: String(resultText(result, usedCoupon)).slice(0, 160)
+  };
+}
+
+function appendHistory(rawHistory, result, usedCoupon, now) {
+  var history = readHistory(rawHistory);
+  history.unshift(buildHistoryRecord(result, usedCoupon, now));
+  return history.slice(0, HISTORY_LIMIT);
+}
+
+function formatTimestamp(timestamp) {
+  var date = new Date(Number(timestamp || 0));
+  if (!timestamp || isNaN(date.getTime())) {
+    return "未知时间";
+  }
+
+  function pad(value) {
+    return String(value).length < 2 ? "0" + value : String(value);
+  }
+
+  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + " " + pad(date.getHours()) + ":" + pad(date.getMinutes());
+}
+
+function formatHistory(history) {
+  var records = readHistory(history);
+  if (!records.length) {
+    return "暂无价保申请记录";
+  }
+
+  return records.map(function (record, index) {
+    return String(index + 1) + ". " + formatTimestamp(record.timestamp) + "\n" + String(record.message || "无详细结果");
+  }).join("\n\n");
+}
+
 function postNotification(subtitle, message) {
   if (typeof $notification !== "undefined" && $notification && typeof $notification.post === "function") {
     $notification.post("京东自动价保", subtitle, message);
@@ -288,9 +343,7 @@ function postApply(credentials, onceBatchId, couponConfirmFlag, callback) {
       "Cookie": credentials.cookie,
       "User-Agent": credentials.userAgent || DEFAULT_USER_AGENT,
       "Origin": "https://h5.m.jd.com",
-      "Referer": "https://h5.m.jd.com/",
-      "X-Referer-Page": PRICE_PAGE,
-      "X-Rp-Client": "h5_1.0.0"
+      "Referer": "https://h5.m.jd.com/"
     },
     body: buildApplyForm(onceBatchId, couponConfirmFlag, Date.now())
   };
@@ -338,11 +391,31 @@ function shouldPostDailyNotice(key) {
 
 function finishScheduled(result, options, usedCoupon) {
   var text = resultText(result, usedCoupon);
+  if (typeof $persistentStore !== "undefined" && $persistentStore) {
+    var history = appendHistory($persistentStore.read(HISTORY_KEY), result, usedCoupon, Date.now());
+    $persistentStore.write(JSON.stringify(history), HISTORY_KEY);
+  }
   console.log("[JDAutoPrice] " + text);
   if (shouldNotify(result, options.notifyAll) && maybeNotifyAuthFailure(result)) {
     var subtitle = result.kind === "success" ? "申请成功" : result.kind === "auth" ? "登录失效" : result.kind === "error" ? "执行失败" : "执行结果";
     postNotification(subtitle, text);
   }
+  $done();
+}
+
+function isHistoryAction(argument) {
+  if (argument && typeof argument === "object") {
+    return String(argument.action || "").toLowerCase() === "history";
+  }
+  return /(?:^|[,&])\s*action\s*=\s*history(?:$|[,&])/i.test(String(argument || ""));
+}
+
+function showHistory() {
+  var rawHistory = typeof $persistentStore !== "undefined" && $persistentStore ? $persistentStore.read(HISTORY_KEY) : null;
+  var history = readHistory(rawHistory);
+  var text = formatHistory(history);
+  console.log("[JDAutoPrice] 最近价保记录\n" + text);
+  postNotification("最近 " + history.length + " 次价保记录", text);
   $done();
 }
 
@@ -400,6 +473,7 @@ function runScheduled() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     STORE_KEY: STORE_KEY,
+    HISTORY_KEY: HISTORY_KEY,
     FUNCTION_ID: FUNCTION_ID,
     readHeader: readHeader,
     sanitizeCookie: sanitizeCookie,
@@ -413,12 +487,19 @@ if (typeof module !== "undefined" && module.exports) {
     resultText: resultText,
     shouldNotify: shouldNotify,
     isRunDue: isRunDue,
+    readHistory: readHistory,
+    buildHistoryRecord: buildHistoryRecord,
+    appendHistory: appendHistory,
+    formatHistory: formatHistory,
+    isHistoryAction: isHistoryAction,
     captureCredentials: captureCredentials
   };
 }
 
 if (typeof $done === "function" && typeof $request !== "undefined") {
   handleCredentialCapture();
+} else if (typeof $done === "function" && isHistoryAction(typeof $argument === "undefined" ? null : $argument)) {
+  showHistory();
 } else if (typeof $done === "function" && typeof $httpClient !== "undefined") {
   runScheduled();
 }
