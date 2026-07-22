@@ -31,9 +31,11 @@ test("插件参数默认自动用券", () => {
   assert.deepEqual(script.readArguments(null), {
     jdCookie: "",
     useCoupon: true,
-    notifyAll: false
+    showRunStatus: true
   });
   assert.equal(script.readArguments({ useCoupon: "false" }).useCoupon, false);
+  assert.equal(script.readArguments({ showRunStatus: "false" }).showRunStatus, false);
+  assert.equal(script.readArguments({ notifyAll: "false" }).showRunStatus, false);
 });
 
 test("首次申请复刻 HAR 的一键价保字段且不复用过期 h5st", () => {
@@ -116,16 +118,17 @@ test("Loon 定时运行会在服务端要求时发起第二次用券请求", () 
     })]
   ]);
   const requests = [];
+  const notices = [];
   let doneCount = 0;
 
   const context = {
     console: { log() {} },
-    $argument: { useCoupon: true, notifyAll: false },
+    $argument: { useCoupon: true, showRunStatus: true },
     $persistentStore: {
       read(key) { return store.get(key) || null; },
       write(value, key) { store.set(key, value); return true; }
     },
-    $notification: { post() {} },
+    $notification: { post(...args) { notices.push(args); } },
     $httpClient: {
       post(options, callback) {
         requests.push(options);
@@ -164,6 +167,8 @@ test("Loon 定时运行会在服务端要求时发起第二次用券请求", () 
   assert.equal(history[0].usedCoupon, true);
   assert.equal(history[0].successCount, 1);
   assert.equal(history[0].totalAmount, 3);
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0][1], "✅ 运行正常");
 });
 
 test("只保留最新 3 次价保申请记录", () => {
@@ -210,15 +215,55 @@ test("Loon 手动查看入口展示本地记录且不发送网络请求", () => 
 
   assert.equal(doneCount, 1);
   assert.equal(notices.length, 1);
-  assert.match(notices[0][1], /最近 1 次价保记录/);
+  assert.equal(notices[0][1], "✅ 运行正常");
+  assert.match(notices[0][2], /状态：✅ 运行正常/);
   assert.match(notices[0][2], /2026-07-22 12:30/);
   assert.match(notices[0][2], /当前无差价/);
+});
+
+test("最近记录健康状态明确区分正常、失败和超时", () => {
+  const now = new Date(2026, 6, 22, 16, 0).getTime();
+  const recent = [{ timestamp: now - 60 * 60 * 1000, kind: "noop", message: "当前无差价" }];
+  const failed = [{ timestamp: now - 10 * 60 * 1000, kind: "error", message: "接口返回格式异常" }];
+  const stale = [{ timestamp: now - 181 * 60 * 1000, kind: "noop", message: "当前无差价" }];
+
+  assert.equal(script.evaluateHealth([], now).label, "⚠️ 尚未运行");
+  assert.equal(script.evaluateHealth(recent, now).label, "✅ 运行正常");
+  assert.equal(script.evaluateHealth(failed, now).label, "❌ 运行失败");
+  assert.match(script.evaluateHealth(failed, now).detail, /接口返回格式异常/);
+  assert.equal(script.evaluateHealth(stale, now).label, "❌ 运行失败");
+  assert.match(script.evaluateHealth(stale, now).detail, /超过 3 小时/);
+});
+
+test("没有登录凭证时明确提示运行失败", () => {
+  const source = fs.readFileSync(path.join(root, "scripts/jd-auto-price-protection.js"), "utf8");
+  const notices = [];
+  const store = new Map();
+  let doneCount = 0;
+
+  vm.runInNewContext(source, {
+    console: { log() {} },
+    $argument: { showRunStatus: true },
+    $persistentStore: {
+      read(key) { return store.get(key) || null; },
+      write(value, key) { store.set(key, value); return true; }
+    },
+    $notification: { post(...args) { notices.push(args); } },
+    $httpClient: { post() { throw new Error("没有凭证时不应发送网络请求"); } },
+    $done() { doneCount += 1; }
+  }, { filename: "jd-auto-price-protection.js" });
+
+  assert.equal(doneCount, 1);
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0][1], "❌ 运行失败");
+  assert.match(notices[0][2], /未找到京东登录凭证/);
 });
 
 test("插件每 30 分钟检查并由本地时间戳保持 2.5 小时间隔", () => {
   const plugin = fs.readFileSync(path.join(root, "plugins/JD-Auto-Price-Protection.plugin"), "utf8");
   assert.match(plugin, /cron "\*\/30 \* \* \* \*"/);
   assert.match(plugin, /useCoupon = switch,true/);
+  assert.match(plugin, /showRunStatus = switch,true/);
   assert.match(plugin, /hostname = api\.m\.jd\.com/);
   assert.match(plugin, /generic .*tag=查看最近3次价保记录,argument="action=history"/);
   assert.doesNotMatch(plugin, /2RePMzTqg6UoffvMwtwVeMcnPGeg/);

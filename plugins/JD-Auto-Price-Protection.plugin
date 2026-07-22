@@ -11,14 +11,14 @@
 [Argument]
 jdCookie = input,"",tag=JD Cookie（可选）,desc=不想首次打开京东时，可在本机填写仅含 pt_key 和 pt_pin 的 Cookie；留空则插件会在首次进入价保页时自动保存。
 useCoupon = switch,true,tag=自动用券,desc=一键价保返回可用优惠券时，自动确认用券继续申请。
-notifyAll = switch,false,tag=通知全部结果,desc=关闭时仅通知返款成功、登录失效或执行错误；普通“无差价”只写入日志。
+showRunStatus = switch,true,tag=每次显示运行状态,desc=开启时每次真实请求都明确通知“运行正常”或“运行失败”；关闭后仍通知返款成功、登录失效和执行错误。
 
 [Script]
 # 仅保存 pt_key/pt_pin 到 Loon 本地；不上传，也不写入插件文件。
 http-request ^https:\/\/api\.m\.jd\.com\/(?:\?.*)?$ script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/jd-auto-price-protection.js,requires-body=false,timeout=10,tag=京东价保凭证自动保存
 
 # 每 30 分钟唤醒检查一次；脚本按本地时间戳保证两次真实申请至少间隔 150 分钟，跨午夜也不会缩短。
-cron "*/30 * * * *" script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/jd-auto-price-protection.js,timeout=60,tag=京东自动价保,argument=[{jdCookie},{useCoupon},{notifyAll}]
+cron "*/30 * * * *" script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/jd-auto-price-protection.js,timeout=60,tag=京东自动价保,argument=[{jdCookie},{useCoupon},{showRunStatus}]
 
 # 在 Loon 的脚本页面手动运行此项，可查看最近 3 次真实申请结果。
 generic script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/jd-auto-price-protection.js,timeout=10,tag=查看最近3次价保记录,argument="action=history"

@@ -9,6 +9,7 @@ var MISSING_NOTICE_KEY = "jd_auto_price_protection_missing_notice_at";
 var LAST_RUN_KEY = "jd_auto_price_protection_last_run_at";
 var HISTORY_KEY = "jd_auto_price_protection_history_v1";
 var RUN_INTERVAL_MS = 150 * 60 * 1000;
+var HEALTH_STALE_MS = 180 * 60 * 1000;
 var HISTORY_LIMIT = 3;
 var API_URL = "https://api.m.jd.com/";
 var FUNCTION_ID = "mlproprice_skuOnceApply_jsf";
@@ -71,13 +72,18 @@ function readArguments(argument) {
   var result = {
     jdCookie: "",
     useCoupon: true,
-    notifyAll: false
+    showRunStatus: true
   };
 
   if (source && typeof source === "object") {
     result.jdCookie = String(source.jdCookie || "");
     result.useCoupon = parseBoolean(source.useCoupon, true);
-    result.notifyAll = parseBoolean(source.notifyAll, false);
+    if (hasOwn(source, "showRunStatus")) {
+      result.showRunStatus = parseBoolean(source.showRunStatus, true);
+    } else if (hasOwn(source, "notifyAll")) {
+      // Compatibility with the first published plugin argument name.
+      result.showRunStatus = parseBoolean(source.notifyAll, true);
+    }
   }
   return result;
 }
@@ -211,8 +217,8 @@ function resultText(result, usedCoupon) {
   return result.message || "无详细结果";
 }
 
-function shouldNotify(result, notifyAll) {
-  return notifyAll || result.kind === "success" || result.kind === "auth" || result.kind === "error" || result.kind === "coupon";
+function shouldNotify(result, showRunStatus) {
+  return showRunStatus || result.kind === "success" || result.kind === "auth" || result.kind === "error" || result.kind === "coupon";
 }
 
 function isRunDue(now, lastRunAt) {
@@ -270,8 +276,48 @@ function formatHistory(history) {
   }
 
   return records.map(function (record, index) {
-    return String(index + 1) + ". " + formatTimestamp(record.timestamp) + "\n" + String(record.message || "无详细结果");
+    var status = record.kind === "auth" || record.kind === "error" ? "失败" : "正常";
+    return String(index + 1) + ". [" + status + "] " + formatTimestamp(record.timestamp) + "\n" + String(record.message || "无详细结果");
   }).join("\n\n");
+}
+
+function evaluateHealth(history, now) {
+  var records = readHistory(history);
+  if (!records.length) {
+    return {
+      healthy: false,
+      label: "⚠️ 尚未运行",
+      detail: "还没有价保请求记录，请等待首次定时执行或检查登录凭证。"
+    };
+  }
+
+  var latest = records[0];
+  var latestAt = Number(latest.timestamp || 0);
+  if (latest.kind === "auth" || latest.kind === "error") {
+    return {
+      healthy: false,
+      label: "❌ 运行失败",
+      detail: "最近一次请求失败：" + String(latest.message || "无详细原因")
+    };
+  }
+
+  if (!latestAt || Number(now || Date.now()) - latestAt > HEALTH_STALE_MS) {
+    return {
+      healthy: false,
+      label: "❌ 运行失败",
+      detail: "已超过 3 小时没有新的价保请求记录，请检查插件、Loon 后台状态和网络。"
+    };
+  }
+
+  return {
+    healthy: true,
+    label: "✅ 运行正常",
+    detail: "最近一次请求时间：" + formatTimestamp(latestAt)
+  };
+}
+
+function runStatusLabel(result) {
+  return result.kind === "auth" || result.kind === "error" ? "❌ 运行失败" : "✅ 运行正常";
 }
 
 function postNotification(subtitle, message) {
@@ -396,9 +442,8 @@ function finishScheduled(result, options, usedCoupon) {
     $persistentStore.write(JSON.stringify(history), HISTORY_KEY);
   }
   console.log("[JDAutoPrice] " + text);
-  if (shouldNotify(result, options.notifyAll) && maybeNotifyAuthFailure(result)) {
-    var subtitle = result.kind === "success" ? "申请成功" : result.kind === "auth" ? "登录失效" : result.kind === "error" ? "执行失败" : "执行结果";
-    postNotification(subtitle, text);
+  if (shouldNotify(result, options.showRunStatus) && maybeNotifyAuthFailure(result)) {
+    postNotification(runStatusLabel(result), text);
   }
   $done();
 }
@@ -413,9 +458,10 @@ function isHistoryAction(argument) {
 function showHistory() {
   var rawHistory = typeof $persistentStore !== "undefined" && $persistentStore ? $persistentStore.read(HISTORY_KEY) : null;
   var history = readHistory(rawHistory);
-  var text = formatHistory(history);
+  var health = evaluateHealth(history, Date.now());
+  var text = "状态：" + health.label + "\n" + health.detail + "\n\n" + formatHistory(history);
   console.log("[JDAutoPrice] 最近价保记录\n" + text);
-  postNotification("最近 " + history.length + " 次价保记录", text);
+  postNotification(health.label, text);
   $done();
 }
 
@@ -429,7 +475,7 @@ function runScheduled() {
 
   if (!credentials) {
     if (shouldPostDailyNotice(MISSING_NOTICE_KEY)) {
-      postNotification("需要初始化", "请在插件参数中填写 pt_key/pt_pin，或仅首次打开一次京东价保页面让插件自动保存登录凭证。");
+      postNotification("❌ 运行失败", "未找到京东登录凭证。请在插件参数中填写 pt_key/pt_pin，或仅首次打开一次京东价保页面让插件自动保存。");
     }
     console.log("[JDAutoPrice] 未找到京东登录凭证");
     $done();
@@ -491,6 +537,8 @@ if (typeof module !== "undefined" && module.exports) {
     buildHistoryRecord: buildHistoryRecord,
     appendHistory: appendHistory,
     formatHistory: formatHistory,
+    evaluateHealth: evaluateHealth,
+    runStatusLabel: runStatusLabel,
     isHistoryAction: isHistoryAction,
     captureCredentials: captureCredentials
   };
