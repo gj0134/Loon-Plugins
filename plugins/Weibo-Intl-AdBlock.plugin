@@ -24,8 +24,8 @@
 # “我的”页面会员推广入口
 ^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=user_center(?:&[^#]*)?$ response-body-json-jq '.data.cards |= map(if (.items | type) == "array" then .items |= map(select(.type != "personal_vip" and .type != "ic_profile_wallpaper")) else . end) | .data.cards |= map(select((.items | type) != "array" or (.items | length) > 0))'
 
-# 发现页“热门视频”推荐区
-^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=trends(?:&[^#]*)?$ response-body-json-jq 'del(.data.native_content)'
+# 发现页会员横幅和“热门视频”推荐区
+^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=trends(?:&[^#]*)?$ response-body-json-jq 'del(.data.banner, .data.native_content)'
 
 [MITM]
 hostname = api.weibo.cn, bootpreload.uve.weibo.com, bootrealtime.uve.weibo.com, weibointl.api.weibo.cn
