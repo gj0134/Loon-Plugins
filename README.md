@@ -23,6 +23,26 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Douyu-AdBlock
 
 在 Loon 的插件页面添加上述 URL，启用插件，并确认 MITM 证书已经安装和信任。启用后请强制关闭斗鱼再重新打开。
 
+### 虎牙直播去广告
+
+基于虎牙 iOS 13.4.0（2026-08-14）实际抓包制作，处理：
+
+- 直播间横屏、竖屏活动推广浮窗
+- “剑与远征”同类游戏推广图标及游戏中心素材
+- 奖励广告任务素材
+- 抓包命中的腾讯广告 SDK 上报
+- 虎牙 HTTPDNS，避免广告流量绕过域名规则
+
+插件只拦截活动浮窗与广告相关请求，不拦截直播流、弹幕、直播封面和礼物业务域名。
+
+Loon 插件订阅地址：
+
+```text
+https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Huya-AdBlock.plugin
+```
+
+在 Loon 的插件页面添加上述 URL，启用插件，并确认 MITM 证书已经安装和信任。启用后请强制关闭虎牙再重新打开；若抓包前已经打开过活动浮窗，仍显示旧页面时需要清理虎牙缓存后重试。
+
 ### 知乎净化（去广告 + 隐藏付费内容）
 
 基于知乎 iOS 11.1.0（2026-07-20）实际抓包优化，处理：
