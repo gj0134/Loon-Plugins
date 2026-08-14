@@ -43,6 +43,24 @@ https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Huya-AdBlock.
 
 在 Loon 的插件页面添加上述 URL，启用插件，并确认 MITM 证书已经安装和信任。启用后请强制关闭虎牙再重新打开；若抓包前已经打开过活动浮窗，仍显示旧页面时需要清理虎牙缓存后重试。
 
+### 微博国际版去广告
+
+基于微博国际版 iOS 7.1.7（2026-08-14）实际抓包制作，处理：
+
+- 关注时间线中的品牌官方推荐广告
+- 启动阶段预加载广告
+- 实时广告请求
+
+关注时间线广告来自独立的 `/2/ad/weibointl` 接口。插件只清空该接口返回的广告列表，不按品牌名或正文关键词过滤，也不修改正常关注时间线、长微博、收藏和分组接口。
+
+Loon 插件订阅地址：
+
+```text
+https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/plugins/Weibo-Intl-AdBlock.plugin
+```
+
+在 Loon 的插件页面添加上述 URL，启用插件，并确认 MITM 证书已经安装和信任。启用后请强制关闭微博国际版再重新打开。
+
 ### 知乎净化（去广告 + 隐藏付费内容）
 
 基于知乎 iOS 11.1.0（2026-07-20）实际抓包优化，处理：

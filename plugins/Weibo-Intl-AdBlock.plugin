@@ -1,0 +1,19 @@
+#!name = 微博国际版去广告
+#!desc = 移除微博国际版关注时间线中的品牌推荐广告，以及启动预加载和实时广告。基于微博国际版 iOS 7.1.7 实际抓包制作。
+#!author = gj0134
+#!tag = 去广告
+#!homepage = https://github.com/gj0134/Loon-Plugins
+#!date = 2026-08-14
+
+[Rewrite]
+# 关注时间线品牌推荐广告：保留接口成功结构，仅清空专用广告列表
+^https:\/\/api\.weibo\.cn\/2\/ad\/weibointl(?:\?.*)?$ response-body-json-jq '.data = []'
+
+# 启动广告预加载：保留服务端配置，仅清空广告素材列表
+^https:\/\/bootpreload\.uve\.weibo\.com\/v1\/ad\/preload(?:\?.*)?$ response-body-json-jq '.ads = []'
+
+# 实时广告请求
+^https:\/\/bootrealtime\.uve\.weibo\.com\/v2\/ad\/realtime(?:\?.*)?$ reject-dict
+
+[MITM]
+hostname = api.weibo.cn, bootpreload.uve.weibo.com, bootrealtime.uve.weibo.com
