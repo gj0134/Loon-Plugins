@@ -1,5 +1,5 @@
 #!name = 虎牙直播去广告
-#!desc = 移除虎牙直播间活动浮窗、游戏推广与奖励广告素材，并阻断抓包命中的第三方广告 SDK 上报。基于虎牙 iOS 13.4.0 实际抓包制作。
+#!desc = 关闭虎牙直播间活动广告弹层，移除游戏推广与奖励广告素材，并阻断抓包命中的第三方广告 SDK 上报。基于虎牙 iOS 13.4.0 实际抓包制作。
 #!author = gj0134
 #!tag = 去广告
 #!homepage = https://github.com/gj0134/Loon-Plugins
@@ -11,21 +11,19 @@ DOMAIN,sdkreport.e.qq.com,REJECT
 DOMAIN,receiver.tdm.qq.com,REJECT
 
 [URL Rewrite]
-# 当前抓包中的“夏日魔法师”横屏/竖屏直播间活动浮窗
-^https:\/\/zt\.huya\.com\/(?:17250f13|45e2e939)\/mobile\/index\.html(?:\?.*)?$ reject
-
-# 后续同类直播间活动浮窗：请求以 window_activity_id 标识
-^https:\/\/zt\.huya\.com\/[^\/?#]+\/mobile\/index\.html\?.*window_activity_id= reject
-
 # “剑与远征”同类游戏推广图标与虎牙游戏中心推广素材
 ^https:\/\/gameresource\.itop\.qq\.com\/[^?#]+\.(?:jpe?g|png|webp)(?:\?.*)?$ reject-img
 ^https:\/\/gr\.msstatic\.com\/gamecenter\/image\/[^?#]+\.(?:jpe?g|png|webp)(?:\?.*)?$ reject-img
 
-# 奖励广告任务素材
-^https:\/\/livewebbs2\.msstatic\.com\/AdRewards(?:DinnerQuest|PackageTaskGuide)\.png(?:\?.*)?$ reject-img
+# 礼物盲盒与奖励广告任务素材（弹层关闭脚本未命中时的兜底）
+^https:\/\/livewebbs2\.msstatic\.com\/(?:liwumanghe120|AdRewards(?:DinnerQuest|PackageTaskGuide))\.png(?:\?.*)?$ reject-img
 
 # 禁用虎牙 HTTPDNS，避免广告请求绕过基于域名的规则
 ^https?:\/\/cdn\.wup\.huya\.com\/launch\/queryHttpDns(?:\?.*)?$ reject
+
+[Script]
+# reject HTML 只会留下空白 WebView；改为调用虎牙原生桥关闭整个活动弹层
+http-response ^https:\/\/zt\.huya\.com\/(?:(?:17250f13|45e2e939)\/mobile\/index\.html(?:\?.*)?|[^\/?#]+\/mobile\/index\.html\?[^#]*window_activity_id=[^#]*)$ script-path=https://raw.githubusercontent.com/gj0134/Loon-Plugins/main/scripts/huya-dismiss-popup.js,tag=关闭虎牙直播间活动弹层,requires-body=true,timeout=10
 
 [MITM]
 hostname = zt.huya.com, gameresource.itop.qq.com, gr.msstatic.com, livewebbs2.msstatic.com, cdn.wup.huya.com
