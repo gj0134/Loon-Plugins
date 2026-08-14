@@ -1,5 +1,5 @@
 #!name = 微博国际版去广告
-#!desc = 移除微博国际版关注时间线中的品牌推荐广告，以及启动预加载和实时广告。基于微博国际版 iOS 7.1.7 实际抓包制作。
+#!desc = 移除微博国际版品牌推荐、荐读、粉丝头条、热门视频、会员推广和开屏广告。基于微博国际版 iOS 7.1.7 实际抓包制作。
 #!author = gj0134
 #!tag = 去广告
 #!homepage = https://github.com/gj0134/Loon-Plugins
@@ -15,5 +15,17 @@
 # 实时广告请求
 ^https:\/\/bootrealtime\.uve\.weibo\.com\/v2\/ad\/realtime(?:\?.*)?$ reject-dict
 
+# 全局广告与会员推广开关：关闭首页/热门/搜索广告、推荐视频和会员引导
+^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=open_app(?:&[^#]*)?$ response-body-json-jq 'del(.data.close_ad_setting) | .data.cytad_show_max_count = 0 | .data.new_ad_status_hot = 0 | .data.new_ad_status_search = 0 | .data.new_ad_status_timeline = 0 | .data.uve_feed_ad = 0 | .data.uve_feed_ad_block = 1 | .data.uve_hot_ad = 0 | .data.uve_space_fat = 0 | .data.uve_topfans_disable = 1 | .data.video_recommend_count = 0 | .data.show_intl_vip = 0 | .data.intl_vip_lead = 0 | .data.vip_lead = 0 | .data.vip_lite_index_recommand = 0 | .data.vip_lite_trend_recommand = 0 | .data.me_not_intlvip = 0 | .data.me_notvip = 0 | .data.vip_title_blog = ""'
+
+# 开屏广告配置：关闭展示并清空主、备用广告素材和插入位置
+^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=get_coopen_ads(?:&[^#]*)?$ response-body-json-jq '.data.display_ad = 0 | .data.close_cyt = 1 | .data.pic_ad = [] | .data.ad_list = [] | .data.ad_type = "" | .data.spare_ad_type = "" | .data.uve_ad_scene = "" | .data.uve_ad_scene_insert_comment = "" | .data.uve_ad_scene_insert_hot = "" | .data.uve_ad_scene_insert_normal = "" | .data.uve_ad_scene_insert_search = "" | .data.uve_ad_scene_insert_video = ""'
+
+# “我的”页面会员推广入口
+^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=user_center(?:&[^#]*)?$ response-body-json-jq '.data.cards |= map(if (.items | type) == "array" then .items |= map(select(.type != "personal_vip" and .type != "ic_profile_wallpaper")) else . end) | .data.cards |= map(select((.items | type) != "array" or (.items | length) > 0))'
+
+# 发现页“热门视频”推荐区
+^https:\/\/weibointl\.api\.weibo\.cn\/portal\.php\?(?:[^#]*&)?a=trends(?:&[^#]*)?$ response-body-json-jq 'del(.data.native_content)'
+
 [MITM]
-hostname = api.weibo.cn, bootpreload.uve.weibo.com, bootrealtime.uve.weibo.com
+hostname = api.weibo.cn, bootpreload.uve.weibo.com, bootrealtime.uve.weibo.com, weibointl.api.weibo.cn
