@@ -9,6 +9,16 @@
   var PREFIX = "[HongguoTrace] ";
   var SENSITIVE_QUERY_KEY = /(?:^|[_-])(?:access[_-]?token|token|auth|authorization|cookie|session|sid|iid|install[_-]?id|device[_-]?id|openudid|idfa|oaid|uuid|user[_-]?id|uid|msToken|bogus|gorgon|khronos|signature|sign|sig|odin[_-]?tt|csrf)(?:$|[_-])/i;
 
+  if (typeof $request === "undefined") {
+    console.log(PREFIX + JSON.stringify({
+      time: new Date().toISOString(),
+      phase: "manual-run",
+      message: "无需手动运行；启用插件后打开红果，HTTP 请求会自动触发日志。"
+    }));
+    $done({});
+    return;
+  }
+
   function header(headers, name) {
     var target = String(name).toLowerCase();
     var source = headers || {};
