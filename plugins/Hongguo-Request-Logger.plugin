@@ -4,7 +4,6 @@
 #!tag=红果短剧,调试
 #!homepage=https://github.com/gj0134/Loon-Plugins
 #!date=2026-08-31
-#!loon_version=3.5.1(983)
 
 [Script]
 # 记录所有 HTTP(S) 请求的方法、脱敏 URL 和少量诊断请求头；不读取请求正文。
